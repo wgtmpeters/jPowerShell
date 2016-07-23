@@ -66,7 +66,6 @@ class PowerShellCommandProcessor implements Callable {
     @Override
     public String call() throws IOException, InterruptedException {
         StringBuilder powerShellOutput = new StringBuilder();
-
         try {
             if (startReading()) {
                 readData(powerShellOutput);
@@ -76,11 +75,11 @@ class PowerShellCommandProcessor implements Callable {
             return ioe.getMessage();
         }
 
-        return powerShellOutput.toString();
+        return readData(powerShellOutput);
     }
 
     //Reads all data from output
-    private void readData(StringBuilder powerShellOutput) throws IOException {
+    private String readData(StringBuilder powerShellOutput) throws IOException {        
         String line;
         while (null != (line = this.reader.readLine())) {
             powerShellOutput.append(line).append(CRLF);
@@ -92,6 +91,8 @@ class PowerShellCommandProcessor implements Callable {
                 Logger.getLogger(PowerShellCommandProcessor.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
+        
+        return powerShellOutput.toString();
     }
 
     //Checks when we can start reading the output. Timeout if it takes too long in order to avoid hangs
