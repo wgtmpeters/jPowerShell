@@ -1,5 +1,9 @@
 package com.profesorfalken.jpowershell;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Assert;
@@ -11,6 +15,8 @@ import org.junit.Test;
  * @author Javier Garcia Alonso
  */
 public class PowerShellTest {
+    
+    private static final String CRLF = "\r\n";
 
     /**
      * Test of openSession method, of class PowerShell.
@@ -226,11 +232,11 @@ public class PowerShellTest {
                 response = powerShell.executeCommand("Get-WmiObject Win32_BIOS");
 
                 System.out.println("BIOS information:" + response.getCommandOutput());
-                
+
                 response = powerShell.executeCommand("sfdsfdsf");
-                
+
                 System.out.println("Error:" + response.getCommandOutput());
-                
+
                 response = powerShell.executeCommand("Get-WmiObject Win32_BIOS");
 
                 System.out.println("BIOS information:" + response.getCommandOutput());
@@ -337,7 +343,7 @@ public class PowerShellTest {
             }
         }
     }
-    
+
     /**
      * Test of long command
      *
@@ -350,17 +356,45 @@ public class PowerShellTest {
             PowerShell powerShell = PowerShell.openSession();
             PowerShellResponse response = null;
             try {
-                response = powerShell.executeCommand("Start-Sleep -s 15");            
+                response = powerShell.executeCommand("Start-Sleep -s 15");
             } finally {
                 powerShell.close();
             }
-            
+
             Assert.assertNotNull(response);
             Assert.assertTrue("PS error should finish in timeout", response.isTimeout());
-            
+
         }
     }
-    
+
+    @Test
+    public void testLongScript() throws Exception {
+        System.out.println("testLongScript");
+        if (OSDetector.isWindows()) {
+            PowerShell powerShell = PowerShell.openSession();
+            Map<String, String> config = new HashMap<String, String>();
+            config.put("maxWait", "40000");
+            PowerShellResponse response = null;
+            
+            StringBuilder scriptContent = new StringBuilder();
+            scriptContent.append("Write-Host \"First message\"").append(CRLF);
+            scriptContent.append("$output = \"c:\\10meg.test\"").append(CRLF);
+            scriptContent.append("(New-Object System.Net.WebClient).DownloadFile(\"http://ipv4.download.thinkbroadband.com/10MB.zip\",$output)").append(CRLF);
+            scriptContent.append("Write-Host \"Second message\"").append(CRLF);
+            scriptContent.append("(New-Object System.Net.WebClient).DownloadFile(\"http://ipv4.download.thinkbroadband.com/10MB.zip\",$output)").append(CRLF);
+            scriptContent.append("Write-Host \"Finish!\"").append(CRLF);
+            
+            try {
+                response = powerShell.configuration(config).executeCommand(generateScript(scriptContent.toString()));
+            } finally {
+                powerShell.close();
+            }
+
+            Assert.assertNotNull(response);
+            System.out.println(response.getCommandOutput());
+        }
+    }
+
     /**
      * Test of long command
      *
@@ -375,14 +409,32 @@ public class PowerShellTest {
             config.put("maxWait", "1000");
             PowerShellResponse response = null;
             try {
-                response = powerShell.configuration(config).executeCommand("Start-Sleep -s 10; Get-Process");            
+                response = powerShell.configuration(config).executeCommand("Start-Sleep -s 10; Get-Process");
             } finally {
                 powerShell.close();
             }
-            
+
             Assert.assertNotNull(response);
             Assert.assertTrue("PS error should finish in timeout", response.isTimeout());
-            
+
         }
+    }
+
+    private static String generateScript(String scriptContent) throws Exception {
+        File tmpFile = null;
+        FileWriter writer = null;
+
+        try {
+            tmpFile = File.createTempFile("psscript_" + new Date().getTime(), ".ps1");
+            writer = new FileWriter(tmpFile);
+            writer.write(scriptContent);
+            writer.flush();
+            writer.close();
+        } finally {
+            if (writer != null) {
+                writer.close();
+            }
+        }
+        return (tmpFile != null) ?  tmpFile.getAbsolutePath() : null;
     }
 }
