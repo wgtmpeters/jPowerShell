@@ -8,18 +8,18 @@ Simple Java API to interact with PowerShell console
 
 ## Installation ##
 
-To install jPowerShell you can add the dependecy to your software project management tool: http://mvnrepository.com/artifact/com.profesorfalken/jPowerShell/1.4.1
+To install jPowerShell you can add the dependecy to your software project management tool: http://mvnrepository.com/artifact/com.profesorfalken/jPowerShell/1.5.1
 
 For example, for Maven you have just to add to your pom.xml: 
 
       <dependency>
 	        <groupId>com.profesorfalken</groupId>
 	        <artifactId>jPowerShell</artifactId>
-	        <version>1.4.1</version>
+	        <version>1.5.1</version>
         </dependency>
 
 Instead, you can direct download the JAR file and add it to your classpath. 
-https://repo1.maven.org/maven2/com/profesorfalken/jPowerShell/1.4.1/jPowerShell-1.4.1.jar
+https://repo1.maven.org/maven2/com/profesorfalken/jPowerShell/1.5.1/jPowerShell-1.5.1.jar
 
 ## Basic Usage ##
 
@@ -29,7 +29,7 @@ The best way to document is providing a good example:
 
 ```java
    //Execute a command in PowerShell session
-   PowerShellResponse response = powerShell.executeSingleCommand("Get-Process");
+   PowerShellResponse response = PowerShell.executeSingleCommand("Get-Process");
    
    //Print results
    System.out.println("List Processes:" + response.getCommandOutput());
@@ -64,3 +64,27 @@ The best way to document is providing a good example:
          powerShell.close();
    }
 ```
+
+#### Configure jPowerShell Session ####
+
+We can easily configure the jPowerShell session:
+
+* *By project* creating a _jpowershell.properties_ file in the classpath of your project and settings the variables you want to override.
+* *By call*, using a map that can be chained to powershell call.
+ 
+For example: 
+
+```java
+    //Set the timeout when waiting for command to terminate to 30 seconds instead of 10 (default)
+    Map<String, String> myConfig = new HashMap<>();
+    myConfig.put("maxWait", "30000");
+    response = powerShell.configure(myConfig).executeCommand("Get-WmiObject Win32_BIOS");
+```
+
+The three variables that can be configured in jPowerShell are: 
+
+*maxThreads*: the maximum number of thread to use in pool. 3 is an optimal and default value
+
+*waitPause*: the pause in ms between each loop pooling for a response. Default value is 10
+
+*maxWait*: the maximum wait in ms for the command to execute. Default value is 10000
