@@ -90,7 +90,13 @@ class PowerShellCommandProcessor implements Callable<String> {
             
             //In the case of script mode it finish when the last line is readed
             if (this.scriptMode) {
-                if (line.equals(PowerShell.END_SCRIPT_STRING)) {
+				
+                if (line.endsWith(PowerShell.END_SCRIPT_STRING)) {
+					if(line.length() > PowerShell.END_SCRIPT_STRING.length()){
+						line = line.substring(0, line.indexOf(PowerShell.END_SCRIPT_STRING));
+						powerShellOutput.append(line).append(CRLF);
+					}
+					
                     break;
                 }
             }
