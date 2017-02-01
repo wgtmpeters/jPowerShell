@@ -49,290 +49,316 @@ import java.util.logging.Logger;
  */
 public class PowerShell {
 
-    //Process to store PowerShell session
-    private Process p;
-    //Writer to send commands
-    private PrintWriter commandWriter;
+	//Process to store PowerShell session
+	private Process p;
+	//Writer to send commands
+	private PrintWriter commandWriter;
 
-    //Threaded session variables
-    private boolean closed = false;
-    private ExecutorService threadpool;
+	//Threaded session variables
+	private boolean closed = false;
+	private ExecutorService threadpool;
 
-    //Config values
-    private int maxThreads = 3;
-    private int waitPause = 10;
-    private long maxWait = 10000;
-    private boolean remoteMode = false;
-    
-    //Variables for script mode
-    private boolean scriptMode = false;
-    public static final String END_SCRIPT_STRING = "--END-JPOWERSHELL-SCRIPT--";
+	//Config values
+	private int maxThreads = 3;
+	private int waitPause = 10;
+	private long maxWait = 10000;
+	private boolean remoteMode = false;
 
-    //Private constructor.
-    private PowerShell() {
-    }
+	//Variables for script mode
+	private boolean scriptMode = false;
+	public static final String END_SCRIPT_STRING = "--END-JPOWERSHELL-SCRIPT--";
 
-    /**
-     * Allows to override jPowerShell configuration using a map of key/value
-     * <br>
-     * Default values are taken from file <i>jpowershell.properties</i>, which
-     * can be replaced just setting it on project classpath
-     *
-     * The values that can be overridden are:
-     * <ul>
-     * <li>maxThreads: the maximum number of thread to use in pool. 3 is an
-     * optimal and default value</li>
-     * <li>waitPause: the pause in ms between each loop pooling for a response.
-     * Default value is 10</li>
-     * <li>maxWait: the maximum wait in ms for the command to execute. Default
-     * value is 10000</li>
-     * </ul>
-     *
-     * @param config map with the configuration in key/value format
-     * @return instance to chain
-     */
-    public PowerShell configuration(Map<String, String> config) {
-        try {
-            this.maxThreads = Integer.valueOf((config != null && config.get("maxThreads") != null) ? config.get("maxThreads") : PowerShellConfig.getConfig().getProperty("maxThreads"));
-            this.waitPause = Integer.valueOf((config != null && config.get("waitPause") != null) ? config.get("waitPause") : PowerShellConfig.getConfig().getProperty("waitPause"));
-            this.maxWait = Long.valueOf((config != null && config.get("maxWait") != null) ? config.get("maxWait") : PowerShellConfig.getConfig().getProperty("maxWait"));
-            this.remoteMode = Boolean.valueOf((config != null && config.get("remoteMode") != null) ? config.get("remoteMode") : PowerShellConfig.getConfig().getProperty("remoteMode"));
-        } catch (NumberFormatException nfe) {
-            Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Could not read configuration. Use default values.", nfe);
-        }
-        return this;
-    }
+	//Private constructor.
+	private PowerShell() {
+	}
 
-    //Initializes PowerShell console in which we will enter the commands
-    private PowerShell initalize() throws PowerShellNotAvailableException {
-        ProcessBuilder pb = new ProcessBuilder("powershell.exe", "-NoExit", "-Command", "-");
-        try {
-            p = pb.start();
-        } catch (IOException ex) {
-            throw new PowerShellNotAvailableException(
-                    "Cannot execute PowerShell.exe. Please make sure that it is installed in your system", ex);
-        }
+	/**
+	 * Allows to override jPowerShell configuration using a map of key/value
+	 * <br>
+	 * Default values are taken from file <i>jpowershell.properties</i>, which
+	 * can be replaced just setting it on project classpath
+	 *
+	 * The values that can be overridden are:
+	 * <ul>
+	 * <li>maxThreads: the maximum number of thread to use in pool. 3 is an
+	 * optimal and default value</li>
+	 * <li>waitPause: the pause in ms between each loop pooling for a response.
+	 * Default value is 10</li>
+	 * <li>maxWait: the maximum wait in ms for the command to execute. Default
+	 * value is 10000</li>
+	 * </ul>
+	 *
+	 * @param config map with the configuration in key/value format
+	 * @return instance to chain
+	 */
+	public PowerShell configuration(Map<String, String> config) {
+		try {
+			this.maxThreads = Integer.valueOf((config != null && config.get("maxThreads") != null) ? config.get("maxThreads") : PowerShellConfig.getConfig().getProperty("maxThreads"));
+			this.waitPause = Integer.valueOf((config != null && config.get("waitPause") != null) ? config.get("waitPause") : PowerShellConfig.getConfig().getProperty("waitPause"));
+			this.maxWait = Long.valueOf((config != null && config.get("maxWait") != null) ? config.get("maxWait") : PowerShellConfig.getConfig().getProperty("maxWait"));
+			this.remoteMode = Boolean.valueOf((config != null && config.get("remoteMode") != null) ? config.get("remoteMode") : PowerShellConfig.getConfig().getProperty("remoteMode"));
+		} catch (NumberFormatException nfe) {
+			Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Could not read configuration. Use default values.", nfe);
+		}
+		return this;
+	}
 
-        commandWriter
-                = new PrintWriter(new OutputStreamWriter(new BufferedOutputStream(p.getOutputStream())), true);
+	//Initializes PowerShell console in which we will enter the commands
+	private PowerShell initalize() throws PowerShellNotAvailableException {
+		ProcessBuilder pb = new ProcessBuilder("powershell.exe", "-NoExit", "-Command", "-");
+		try {
+			p = pb.start();
+		} catch (IOException ex) {
+			throw new PowerShellNotAvailableException(
+				"Cannot execute PowerShell.exe. Please make sure that it is installed in your system", ex);
+		}
 
-        //Init thread pool
-        this.threadpool = Executors.newFixedThreadPool(this.maxThreads);
+		commandWriter
+			= new PrintWriter(new OutputStreamWriter(new BufferedOutputStream(p.getOutputStream())), true);
 
-        return this;
-    }
+		//Init thread pool
+		this.threadpool = Executors.newFixedThreadPool(this.maxThreads);
 
-    /**
-     * Creates a session in PowerShell console an returns an instance which
-     * allows to execute commands in PowerShell context
-     *
-     * @return an instance of the class
-     * @throws PowerShellNotAvailableException if PowerShell is not installed in
-     * the system
-     */
-    public static PowerShell openSession() throws PowerShellNotAvailableException {
-        PowerShell powerShell = new PowerShell();
+		return this;
+	}
 
-        //Start with default configuration
-        powerShell.configuration(null);
+	/**
+	 * Creates a session in PowerShell console an returns an instance which
+	 * allows to execute commands in PowerShell context
+	 *
+	 * @return an instance of the class
+	 * @throws PowerShellNotAvailableException if PowerShell is not installed in
+	 * the system
+	 */
+	public static PowerShell openSession() throws PowerShellNotAvailableException {
+		PowerShell powerShell = new PowerShell();
 
-        return powerShell.initalize();
-    }
+		//Start with default configuration
+		powerShell.configuration(null);
 
-    /**
-     * Launch a PowerShell command.<p>
-     * This method launch a thread which will be executed in the already created
-     * PowerShell console context
-     *
-     * @param command the command to call. Ex: dir
-     * @return PowerShellResponse the information returned by powerShell
-     */
-    public PowerShellResponse executeCommand(String command) {
-        Callable<String> commandProcessor = new PowerShellCommandProcessor("standard",
-                p.getInputStream(), this.maxWait, this.waitPause, this.scriptMode);
-        Callable<String> commandProcessorError = new PowerShellCommandProcessor("error",
-                p.getErrorStream(), this.maxWait, this.waitPause, false);
+		return powerShell.initalize();
+	}
 
-        String commandOutput = "";
-        boolean isError = false;
-        boolean timeout = false;
+	/**
+	 * Launch a PowerShell command.<p>
+	 * This method launch a thread which will be executed in the already created
+	 * PowerShell console context
+	 *
+	 * @param command the command to call. Ex: dir
+	 * @return PowerShellResponse the information returned by powerShell
+	 */
+	public PowerShellResponse executeCommand(String command) {
+		Callable<String> commandProcessor = new PowerShellCommandProcessor("standard",
+			p.getInputStream(), this.maxWait, this.waitPause, this.scriptMode);
+		Callable<String> commandProcessorError = new PowerShellCommandProcessor("error",
+			p.getErrorStream(), this.maxWait, this.waitPause, this.scriptMode);
 
-        Future<String> result = threadpool.submit(commandProcessor);
-        Future<String> resultError = threadpool.submit(commandProcessorError);
-        
-        if (this.remoteMode) {
+		String commandOutput = "";
+		boolean isError = false;
+		boolean timeout = false;
+
+		Future<String> result = threadpool.submit(commandProcessor);
+		Future<String> resultError = threadpool.submit(commandProcessorError);
+
+		if (this.remoteMode) {
         	command  = completeRemoteCommand(command);
-        }
+		}
 
-        //Launch command
-        commandWriter.println(command);
+		//Launch command
+		commandWriter.println(command);
 
-        try {
-            while (!result.isDone() && !resultError.isDone()) {
-                Thread.sleep(this.waitPause);
-            }
-            if (result.isDone()) {
-                if (((PowerShellCommandProcessor) commandProcessor).isTimeout()) {
-                    timeout = true;
-                } else {
-                    commandOutput = result.get();
-                }
-            } else {
-                isError = true;
-                commandOutput = resultError.get();
-            }
-        } catch (InterruptedException ex) {
-            Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Unexpected error when processing PowerShell command", ex);
-        } catch (ExecutionException ex) {
-            Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Unexpected error when processing PowerShell command", ex);
-        } finally {
-            //issue #2. Close and cancel processors/threads - Thanks to r4lly for helping me here
-            ((PowerShellCommandProcessor) commandProcessor).close();
-            ((PowerShellCommandProcessor) commandProcessorError).close();
-        }
+		try {
+			if (this.scriptMode) {
+				int runningTime = 0;
+				while (!result.isDone() || !resultError.isDone()) {
+					if (runningTime > maxWait) {
+						Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Unexpected error when waiting for PowerShell: TIMEOUT!");
+						timeout = true;
+						break;
+					}
+					Thread.sleep(this.waitPause);
+					runningTime += this.waitPause;
+				}
+			} else {
+				int runningTime = 0;
+				while (!result.isDone() && !resultError.isDone()) {
+					if (runningTime > maxWait) {
+						Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Unexpected error when waiting for PowerShell: TIMEOUT!");
+						timeout = true;
+						break;
+					}
+					Thread.sleep(this.waitPause);
+					runningTime += this.waitPause;
+				}
+			}
 
-        return new PowerShellResponse(isError, commandOutput, timeout);
-    }
-    
-    /**
-     * Execute a single command in PowerShell console and gets result
-     *
-     * @param command the command to execute
-     * @return response with the output of the command
-     */
-    public static PowerShellResponse executeSingleCommand(String command) {
-        PowerShell session = null;
-        PowerShellResponse response = null;
-        try {
-            session = PowerShell.openSession();
+			if (result.isDone()) {
+				if (((PowerShellCommandProcessor) commandProcessor).isTimeout()) {
+					timeout = true;
+				} else {
+					commandOutput = result.get();
+				}
+			}
+			if (resultError.isDone()) {
+				if (resultError.get().length() > 0) {
+					isError = true;
+					commandOutput += resultError.get();
+				}
+			}
+		} catch (InterruptedException ex) {
+			Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Unexpected error when processing PowerShell command", ex);
+		} catch (ExecutionException ex) {
+			Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Unexpected error when processing PowerShell command", ex);
+		} finally {
+			//issue #2. Close and cancel processors/threads - Thanks to r4lly for helping me here
+			((PowerShellCommandProcessor) commandProcessor).close();
+			((PowerShellCommandProcessor) commandProcessorError).close();
+		}
 
-            response = session.executeCommand(command);
-        } catch (PowerShellNotAvailableException ex) {
-            Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "PowerShell not available", ex);
-        } finally {
-            if (session != null) {
-                session.close();
-            }
-        }
-        return response;
-    }
-    
-    /**
-     * Executed the provided PowerShell script in PowerShell console and 
-     * gets result. 
-     *
-     * @param scriptPath the full paht of the script
-     * @return response with the output of the command
-     */
-    public PowerShellResponse executeScript(String scriptPath) {
-    	return executeScript(scriptPath, "");
-    }
+		return new PowerShellResponse(isError, commandOutput, timeout);
+	}
 
-    /**
-     * Executed the provided PowerShell script in PowerShell console and 
-     * gets result. 
-     * 
-     * @param scriptPath the full path of the script
-     * @param params the parameters of the script
-     * @return response with the output of the command
-     */
-    public PowerShellResponse executeScript(String scriptPath, String params) {
-        BufferedReader reader = null;
-        BufferedWriter writer = null;
-        
-        File tmpFile = null;
-        try {
-            File scriptToExecute = new File(scriptPath);
-            if (!scriptToExecute.exists()) {
-                return new PowerShellResponse(true, "Wrong script path: " + scriptToExecute, false);
-            }
-            tmpFile = File.createTempFile("psscript_" + new Date().getTime(), ".ps1");
-            if (tmpFile == null || !tmpFile.exists()) {
-                return new PowerShellResponse(true, "Cannot create temp script file", false);
-            }
-            
-            reader = new BufferedReader(new FileReader(scriptToExecute));
-            writer = new BufferedWriter(new FileWriter(tmpFile));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                writer.write(line);
-                writer.newLine();
-            }
-            //Add end script line
-            writer.write("Write-Host \"" + END_SCRIPT_STRING + "\"");
-        } catch (FileNotFoundException fnfex) {
-            Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Unexpected error when processing PowerShell script", fnfex);
-        } catch (IOException ioex) {
-            Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Unexpected error when processing PowerShell script", ioex);
-        } finally {
-            try {
-                if (reader != null) {
-                    reader.close();
-                }
-                if (writer != null) {
-                    writer.close();
-                }
-            } catch (IOException ex) {
-                Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Unexpected error when processing PowerShell script", ex);
-            }
-        }
-                
-        this.scriptMode = true;
+	/**
+	 * Execute a single command in PowerShell console and gets result
+	 *
+	 * @param command the command to execute
+	 * @return response with the output of the command
+	 */
+	public static PowerShellResponse executeSingleCommand(String command) {
+		PowerShell session = null;
+		PowerShellResponse response = null;
+		try {
+			session = PowerShell.openSession();
 
-        return executeCommand(tmpFile.getAbsolutePath() + " " + params);
-    }
+			response = session.executeCommand(command);
+		} catch (PowerShellNotAvailableException ex) {
+			Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "PowerShell not available", ex);
+		} finally {
+			if (session != null) {
+				session.close();
+			}
+		}
+		return response;
+	}
 
-    /**
-     * Closes all the resources used to maintain the PowerShell context
-     */
-    public void close() {
-        if (!this.closed) {
-            try {
-                Future<String> closeTask = threadpool.submit(new Callable<String>() {
-                    public String call() throws Exception {
-                        commandWriter.println("exit");
+	/**
+	 * Executed the provided PowerShell script in PowerShell console and 
+	 * gets result.
+	 *
+	 * @param scriptPath the full paht of the script
+	 * @return response with the output of the command
+	 */
+	public PowerShellResponse executeScript(String scriptPath) {
+		return executeScript(scriptPath, "");
+	}
+
+	/**
+	 * Executed the provided PowerShell script in PowerShell console and 
+	 * gets result.
+	 *
+	 * @param scriptPath the full path of the script
+	 * @param params the parameters of the script
+	 * @return response with the output of the command
+	 */
+	public PowerShellResponse executeScript(String scriptPath, String params) {
+		BufferedReader reader = null;
+		BufferedWriter writer = null;
+
+		File tmpFile = null;
+		try {
+			File scriptToExecute = new File(scriptPath);
+			if (!scriptToExecute.exists()) {
+				return new PowerShellResponse(true, "Wrong script path: " + scriptToExecute, false);
+			}
+			tmpFile = File.createTempFile("psscript_" + new Date().getTime(), ".ps1");
+			if (tmpFile == null || !tmpFile.exists()) {
+				return new PowerShellResponse(true, "Cannot create temp script file", false);
+			}
+
+			reader = new BufferedReader(new FileReader(scriptToExecute));
+			writer = new BufferedWriter(new FileWriter(tmpFile));
+			String line;
+			while ((line = reader.readLine()) != null) {
+				writer.write(line);
+				writer.newLine();
+			}
+			//Add end script line
+			writer.write("[Console]::Error.WriteLine(\"" + END_SCRIPT_STRING + "\")");
+			writer.newLine();
+			writer.write("Write-Host \"" + END_SCRIPT_STRING + "\"");
+		} catch (FileNotFoundException fnfex) {
+			Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Unexpected error when processing PowerShell script", fnfex);
+		} catch (IOException ioex) {
+			Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Unexpected error when processing PowerShell script", ioex);
+		} finally {
+			try {
+				if (reader != null) {
+					reader.close();
+				}
+				if (writer != null) {
+					writer.close();
+				}
+			} catch (IOException ex) {
+				Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Unexpected error when processing PowerShell script", ex);
+			}
+		}
+
+		this.scriptMode = true;
+
+		return executeCommand(tmpFile.getAbsolutePath() + " " + params);
+	}
+
+	/**
+	 * Closes all the resources used to maintain the PowerShell context
+	 */
+	public void close() {
+		if (!this.closed) {
+			try {
+				Future<String> closeTask = threadpool.submit(new Callable<String>() {
+					public String call() throws Exception {
+						commandWriter.println("exit");
                         p.waitFor();
-                        return "OK";
-                    }
-                });
-                waitUntilClose(closeTask);
-            } catch (InterruptedException ex) {
-                Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Unexpected error when when closing PowerShell", ex);
-            } finally {
-                try {
-                    p.getInputStream().close();
-                    p.getErrorStream().close();
-                } catch (IOException ex) {
-                    Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Unexpected error when when closing streams", ex);
-                }
-                commandWriter.close();
-                if (this.threadpool != null) {
-                    try {
-                        this.threadpool.shutdownNow();
-                        this.threadpool.awaitTermination(5, TimeUnit.SECONDS);
-                    } catch (InterruptedException ex) {
-                        Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Unexpected error when when shutting thread pool", ex);
-                    }
+						return "OK";
+					}
+				});
+				waitUntilClose(closeTask);
+			} catch (InterruptedException ex) {
+				Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Unexpected error when when closing PowerShell", ex);
+			} finally {
+				try {
+					p.getInputStream().close();
+					p.getErrorStream().close();
+				} catch (IOException ex) {
+					Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Unexpected error when when closing streams", ex);
+				}
+				commandWriter.close();
+				if (this.threadpool != null) {
+					try {
+						this.threadpool.shutdownNow();
+						this.threadpool.awaitTermination(5, TimeUnit.SECONDS);
+					} catch (InterruptedException ex) {
+						Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Unexpected error when when shutting thread pool", ex);
+					}
 
-                }
-                this.closed = true;
-            }
-        }
-    }
+				}
+				this.closed = true;
+			}
+		}
+	}
 
-    private void waitUntilClose(Future<String> task) throws InterruptedException {
-        int closingTime = 0;
-        while (!task.isDone()) {
-            if (closingTime > maxWait) {
-                Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Unexpected error when closing PowerShell: TIMEOUT!");
-                break;
-            }
-            Thread.sleep(this.waitPause);
-            closingTime += this.waitPause;
-        }
-    }
-    
-    private String completeRemoteCommand(String command) {
-    	return command + ";Write-Host \"\"";
-    }
+	private void waitUntilClose(Future<String> task) throws InterruptedException {
+		int closingTime = 0;
+		while (!task.isDone()) {
+			if (closingTime > maxWait) {
+				Logger.getLogger(PowerShell.class.getName()).log(Level.SEVERE, "Unexpected error when closing PowerShell: TIMEOUT!");
+				break;
+			}
+			Thread.sleep(this.waitPause);
+			closingTime += this.waitPause;
+		}
+	}
+
+	private String completeRemoteCommand(String command) {
+		return command + ";Write-Host \"\"";
+	}
 }
